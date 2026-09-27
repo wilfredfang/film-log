@@ -110,6 +110,7 @@
     <button data-view="rolls" class="active" onclick="switchView('rolls',this)">📷 拍摄卷</button>
     <button data-view="stock" onclick="switchView('stock',this)">📦 胶片库存</button>
     <button data-view="dev" onclick="switchView('dev',this)">🧪 冲扫管理</button>
+    <button data-view="equip" onclick="switchView('equip',this)">📸 设备库</button>
     <button data-view="stats" onclick="switchView('stats',this)">📊 成本统计</button>
   </nav>
   <main>
@@ -126,7 +127,8 @@
             <label class="fld">型号<input id="r-model" list="model-list" placeholder="选常用型号或输入" required><datalist id="model-list"></datalist></label>
             <label class="fld">ISO<select id="r-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
             <label class="fld">画幅<select id="r-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
-            <label class="fld">相机<input id="r-camera" placeholder="如 FM2 / 旁轴"></label>
+            <label class="fld">相机<input id="r-camera" list="camera-list" placeholder="选相机或输入"><datalist id="camera-list"></datalist></label>
+            <label class="fld">镜头<input id="r-lens" list="lens-list" placeholder="选镜头或输入"><datalist id="lens-list"></datalist></label>
             <label class="fld">张数(实拍)<input id="r-frames" type="number" min="0" list="frame-list" value="36"><datalist id="frame-list"><option>12</option><option>16</option><option>24</option><option>27</option><option>36</option><option>48</option></datalist></label>
             <label class="fld">装卷日期<input id="r-loaded" type="date"></label>
             <label class="fld">拍完日期<input id="r-finished" type="date"></label>
@@ -202,6 +204,30 @@
       </div>
     </section>
 
+    <!-- ========== 设备库 ========== -->
+    <section class="view" id="view-equip">
+      <div class="card">
+        <h2 id="equip-form-title">新增设备</h2>
+        <div class="hint">把你的相机和镜头登记进来，拍摄卷时就能直接下拉选；也能随时查看自己有哪些设备。</div>
+        <form id="equip-form" onsubmit="return saveEquip(event)">
+          <input type="hidden" id="equip-id">
+          <div class="grid c3">
+            <label class="fld">类型<select id="e-type"><option>相机</option><option>镜头</option></select></label>
+            <label class="fld">名称<input id="e-name" placeholder="如 Nikon FM2 / Zeiss 50mm f1.4" required></label>
+            <label class="fld">备注<input id="e-note" placeholder="卡口/序列号/机身色等"></label>
+          </div>
+          <div class="row-actions" style="margin-top:12px">
+            <button class="btn" type="submit" id="equip-submit">保存</button>
+            <button class="btn ghost" type="button" onclick="resetEquipForm()">清空</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>设备列表 <span id="equip-count" class="muted" style="font-weight:400;font-size:12px"></span></h2>
+        <div id="equip-list"></div>
+      </div>
+    </section>
+
     <!-- ========== 统计 ========== -->
     <section class="view" id="view-stats">
       <div id="stats-overview"></div>
@@ -226,7 +252,7 @@
 <script>
 /* ---------------- 数据存储 ---------------- */
 const KEY='filmlog_v1';
-let db={rolls:[],stock:[],dev:[]};
+let db={rolls:[],stock:[],dev:[],equip:[]};
 function load(){try{const r=localStorage.getItem(KEY);if(r)db=JSON.parse(r);}catch(e){}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -271,6 +297,7 @@ function saveRoll(e){
     iso:$('r-iso').value,
     format:$('r-format').value,
     camera:$('r-camera').value.trim(),
+    lens:$('r-lens').value.trim(),
     frames:parseInt($('r-frames').value)||0,
     loaded:$('r-loaded').value,
     finished:$('r-finished').value,
@@ -291,7 +318,7 @@ function resetRollForm(){
 }
 function editRoll(id){const r=db.rolls.find(x=>x.id===id);if(!r)return;
   $('roll-id').value=r.id;$('r-brand').value=r.brand;$('r-model').value=r.model;
-  $('r-iso').value=r.iso;$('r-format').value=r.format;$('r-camera').value=r.camera;
+  $('r-iso').value=r.iso;$('r-format').value=r.format;$('r-camera').value=r.camera;$('r-lens').value=r.lens||'';
   $('r-frames').value=r.frames;$('r-loaded').value=r.loaded;$('r-finished').value=r.finished;
   $('r-price').value=r.price;$('r-notes').value=r.notes;
   $('roll-form-title').textContent='编辑：'+r.brand+' '+r.model;$('roll-submit').textContent='更新';
@@ -391,6 +418,34 @@ function renderDev(){const list=$('dev-list');$('dev-count').textContent='共 '+
   list.innerHTML=h+'</tbody></table>';
 }
 
+/* ---------------- 设备库 ---------------- */
+function fillCameraList(){document.getElementById('camera-list').innerHTML=db.equip.filter(e=>e.type==='相机').map(e=>`<option value="${esc(e.name)}">`).join('');}
+function fillLensList(){document.getElementById('lens-list').innerHTML=db.equip.filter(e=>e.type==='镜头').map(e=>`<option value="${esc(e.name)}">`).join('');}
+function saveEquip(e){e.preventDefault();
+  const id=$('equip-id').value;
+  const o={id:id||uid(),type:$('e-type').value,name:$('e-name').value.trim(),note:$('e-note').value.trim()};
+  if(!o.name){toast('请填写名称');return false;}
+  if(id){const i=db.equip.findIndex(x=>x.id===id);db.equip[i]=o;}else db.equip.unshift(o);
+  save();fillCameraList();fillLensList();resetEquipForm();renderEquip();toast(id?'已更新':'已入库');return false;
+}
+function resetEquipForm(){$('equip-form').reset();$('equip-id').value='';$('equip-form-title').textContent='新增设备';$('equip-submit').textContent='保存';}
+function editEquip(id){const x=db.equip.find(e=>e.id===id);if(!x)return;
+  $('equip-id').value=x.id;$('e-type').value=x.type;$('e-name').value=x.name;$('e-note').value=x.note;
+  $('equip-form-title').textContent='编辑：'+x.name;$('equip-submit').textContent='更新';$('view-equip').scrollIntoView({behavior:'smooth'});}
+function delEquip(id){if(!confirm('删除这台设备？'))return;db.equip=db.equip.filter(e=>e.id!==id);save();fillCameraList();fillLensList();renderEquip();toast('已删除');}
+function renderEquip(){const list=$('equip-list');
+  const cam=db.equip.filter(e=>e.type==='相机').length, len=db.equip.filter(e=>e.type==='镜头').length;
+  $('equip-count').textContent=`共 ${db.equip.length} 件 · 相机 ${cam} · 镜头 ${len}`;
+  if(!db.equip.length){list.innerHTML='<div class="empty">还没有设备，先在上方添加相机/镜头。</div>';return;}
+  let h='<table><thead><tr><th>名称</th><th>类型</th><th>备注</th><th>操作</th></tr></thead><tbody>';
+  db.equip.forEach(e=>{
+    const tg=e.type==='相机'?'<span class="tag">相机</span>':'<span class="tag dev">镜头</span>';
+    h+=`<tr><td><b>${esc(e.name)}</b></td><td>${tg}</td><td class="muted">${esc(e.note)||'—'}</td>
+      <td><div class="row-actions"><button class="btn sm ghost" onclick="editEquip('${e.id}')">编辑</button><button class="btn sm danger" onclick="delEquip('${e.id}')">删</button></div></td></tr>`;
+  });
+  list.innerHTML=h+'</tbody></table>';
+}
+
 /* ---------------- 统计 ---------------- */
 function barChart(elId,data){
   const el=$(elId);if(!data.length){el.innerHTML='<div class="empty">暂无数据。</div>';return;}
@@ -437,8 +492,8 @@ function importData(input){const f=input.files[0];if(!f)return;const rd=new File
   rd.readAsText(f);input.value='';}
 
 /* ---------------- 初始化 ---------------- */
-function renderAll(){renderRolls();renderStock();renderDev();fillRollSelect();}
-load();fillBrandList();
+function renderAll(){renderRolls();renderStock();renderDev();renderEquip();fillRollSelect();}
+load();fillBrandList();fillCameraList();fillLensList();
 document.getElementById('r-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list'));
 document.getElementById('s-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list-s'));
 resetRollForm();
