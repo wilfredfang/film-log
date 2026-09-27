@@ -94,6 +94,12 @@
     opacity:0;transition:opacity .25s;pointer-events:none;z-index:50}
   .toast.show{opacity:1}
   .hint{font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:10px}
+  .equip-type-h{font-weight:700;margin:10px 0 6px;color:var(--text);font-size:14px}
+  .equip-brand-h{font-size:12px;color:var(--muted);margin:10px 0 4px;padding-left:6px;border-left:3px solid var(--accent)}
+  .equip-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line)}
+  .equip-row .equip-name{flex:1;min-width:0}
+  .equip-row .equip-note{flex:2;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media(max-width:780px){.equip-row .equip-note{display:none}}
 </style>
 </head>
 <body>
@@ -213,6 +219,7 @@
           <input type="hidden" id="equip-id">
           <div class="grid c3">
             <label class="fld">类型<select id="e-type"><option>相机</option><option>镜头</option></select></label>
+            <label class="fld">品牌<input id="e-brand" list="equip-brand-list" placeholder="选品牌或输入"><datalist id="equip-brand-list"></datalist></label>
             <label class="fld">名称<input id="e-name" placeholder="如 Nikon FM2 / Zeiss 50mm f1.4" required></label>
             <label class="fld">备注<input id="e-note" placeholder="卡口/序列号/机身色等"></label>
           </div>
@@ -230,6 +237,14 @@
 
     <!-- ========== 统计 ========== -->
     <section class="view" id="view-stats">
+      <div class="card">
+        <h2>记录起始日</h2>
+        <div class="hint">设置你开始用本工具记录的日期，统计页会显示「自 X 起累计」。</div>
+        <div class="row-actions">
+          <input id="meta-start" type="date">
+          <button class="btn" onclick="saveMeta()">保存</button>
+        </div>
+      </div>
       <div id="stats-overview"></div>
       <div class="card">
         <h2>按品牌花费（买卷 + 冲扫）</h2>
@@ -252,7 +267,7 @@
 <script>
 /* ---------------- 数据存储 ---------------- */
 const KEY='filmlog_v1';
-let db={rolls:[],stock:[],dev:[],equip:[]};
+let db={rolls:[],stock:[],dev:[],equip:[],meta:{}};
 function load(){try{const r=localStorage.getItem(KEY);if(r)db=JSON.parse(r);}catch(e){}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -418,32 +433,46 @@ function renderDev(){const list=$('dev-list');$('dev-count').textContent='共 '+
   list.innerHTML=h+'</tbody></table>';
 }
 
+/* 设备品牌（用于设备库分类） */
+const EQUIP_BRANDS=["理光 (Ricoh)","宾得 (Pentax)","佳能 (Canon)","尼康 (Nikon)","富士 (Fujifilm)","索尼 (Sony)","徕卡 (Leica)","蔡司 (Zeiss)","适马 (Sigma)","腾龙 (Tamron)","奥林巴斯 (Olympus)","松下 (Panasonic)","哈苏 (Hasselblad)","美能达 (Minolta)","三星 (Samsung)"];
+function fillEquipBrandList(){const extra=db.equip.map(e=>e.brand).filter(Boolean);const all=[...new Set([...EQUIP_BRANDS,...extra])];document.getElementById('equip-brand-list').innerHTML=all.map(b=>`<option value="${esc(b)}">`).join('');}
+
 /* ---------------- 设备库 ---------------- */
 function fillCameraList(){document.getElementById('camera-list').innerHTML=db.equip.filter(e=>e.type==='相机').map(e=>`<option value="${esc(e.name)}">`).join('');}
 function fillLensList(){document.getElementById('lens-list').innerHTML=db.equip.filter(e=>e.type==='镜头').map(e=>`<option value="${esc(e.name)}">`).join('');}
 function saveEquip(e){e.preventDefault();
   const id=$('equip-id').value;
-  const o={id:id||uid(),type:$('e-type').value,name:$('e-name').value.trim(),note:$('e-note').value.trim()};
+  const o={id:id||uid(),type:$('e-type').value,brand:$('e-brand').value.trim(),name:$('e-name').value.trim(),note:$('e-note').value.trim()};
   if(!o.name){toast('请填写名称');return false;}
   if(id){const i=db.equip.findIndex(x=>x.id===id);db.equip[i]=o;}else db.equip.unshift(o);
-  save();fillCameraList();fillLensList();resetEquipForm();renderEquip();toast(id?'已更新':'已入库');return false;
+  save();fillCameraList();fillLensList();fillEquipBrandList();resetEquipForm();renderEquip();toast(id?'已更新':'已入库');return false;
 }
 function resetEquipForm(){$('equip-form').reset();$('equip-id').value='';$('equip-form-title').textContent='新增设备';$('equip-submit').textContent='保存';}
 function editEquip(id){const x=db.equip.find(e=>e.id===id);if(!x)return;
-  $('equip-id').value=x.id;$('e-type').value=x.type;$('e-name').value=x.name;$('e-note').value=x.note;
+  $('equip-id').value=x.id;$('e-type').value=x.type;$('e-brand').value=x.brand||'';$('e-name').value=x.name;$('e-note').value=x.note;
   $('equip-form-title').textContent='编辑：'+x.name;$('equip-submit').textContent='更新';$('view-equip').scrollIntoView({behavior:'smooth'});}
 function delEquip(id){if(!confirm('删除这台设备？'))return;db.equip=db.equip.filter(e=>e.id!==id);save();fillCameraList();fillLensList();renderEquip();toast('已删除');}
 function renderEquip(){const list=$('equip-list');
   const cam=db.equip.filter(e=>e.type==='相机').length, len=db.equip.filter(e=>e.type==='镜头').length;
   $('equip-count').textContent=`共 ${db.equip.length} 件 · 相机 ${cam} · 镜头 ${len}`;
   if(!db.equip.length){list.innerHTML='<div class="empty">还没有设备，先在上方添加相机/镜头。</div>';return;}
-  let h='<table><thead><tr><th>名称</th><th>类型</th><th>备注</th><th>操作</th></tr></thead><tbody>';
-  db.equip.forEach(e=>{
-    const tg=e.type==='相机'?'<span class="tag">相机</span>':'<span class="tag dev">镜头</span>';
-    h+=`<tr><td><b>${esc(e.name)}</b></td><td>${tg}</td><td class="muted">${esc(e.note)||'—'}</td>
-      <td><div class="row-actions"><button class="btn sm ghost" onclick="editEquip('${e.id}')">编辑</button><button class="btn sm danger" onclick="delEquip('${e.id}')">删</button></div></td></tr>`;
+  const types=[['相机','相机'],['镜头','镜头']];
+  let h='';
+  types.forEach(([type,label])=>{
+    const items=db.equip.filter(e=>e.type===type);
+    if(!items.length)return;
+    h+=`<div class="equip-type-h">${label}（${items.length}）</div>`;
+    const groups={};
+    items.forEach(e=>{const b=e.brand||'未分类';(groups[b]=groups[b]||[]).push(e);});
+    Object.keys(groups).sort((a,b)=>a==='未分类'?1:b==='未分类'?-1:a.localeCompare(b,'zh')).forEach(b=>{
+      h+=`<div class="equip-brand-h">${esc(b)}</div>`;
+      groups[b].forEach(e=>{
+        h+=`<div class="equip-row"><span class="equip-name"><b>${esc(e.name)}</b></span><span class="equip-note muted">${esc(e.note)||''}</span>
+          <span class="row-actions"><button class="btn sm ghost" onclick="editEquip('${e.id}')">编辑</button><button class="btn sm danger" onclick="delEquip('${e.id}')">删</button></span></div>`;
+      });
+    });
   });
-  list.innerHTML=h+'</tbody></table>';
+  list.innerHTML=h;
 }
 
 /* ---------------- 统计 ---------------- */
@@ -455,13 +484,15 @@ function barChart(elId,data){
     <div class="val">${d.suffix||''}${fmt(d.v)}</div></div>`).join('');
 }
 function renderStats(){
+  $('meta-start').value=(db.meta&&db.meta.startDate)||'';
   const totalRolls=db.rolls.length;
   const totalFrames=db.rolls.reduce((a,r)=>a+(r.frames||0),0);
   const filmCost=db.rolls.reduce((a,r)=>a+(r.price||0),0);
   const devCost=db.dev.reduce((a,d)=>a+(d.cost||0),0);
   const totalCost=filmCost+devCost;
   const perFrame=totalFrames?totalCost/totalFrames:0;
-  $('stats-overview').innerHTML=`<div class="stat-grid">
+  const startNote=(db.meta&&db.meta.startDate)?`<div class="muted" style="margin-bottom:12px;font-size:13px">自 <b>${esc(db.meta.startDate)}</b> 起累计记录</div>`:'';
+  $('stats-overview').innerHTML=startNote+`<div class="stat-grid">
     <div class="stat"><div class="n">${totalRolls}</div><div class="l">总卷数</div></div>
     <div class="stat"><div class="n">${totalFrames}</div><div class="l">总拍摄张数</div></div>
     <div class="stat"><div class="n">¥${fmt(filmCost)}</div><div class="l">胶片花费</div></div>
@@ -483,6 +514,8 @@ function renderStats(){
   barChart('chart-cost',rollCosts);
 }
 
+function saveMeta(){db.meta=db.meta||{};db.meta.startDate=$('meta-start').value;save();renderStats();toast('已保存起始日');}
+
 /* ---------------- 备份 ---------------- */
 function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -493,7 +526,7 @@ function importData(input){const f=input.files[0];if(!f)return;const rd=new File
 
 /* ---------------- 初始化 ---------------- */
 function renderAll(){renderRolls();renderStock();renderDev();renderEquip();fillRollSelect();}
-load();fillBrandList();fillCameraList();fillLensList();
+load();fillBrandList();fillCameraList();fillLensList();fillEquipBrandList();
 document.getElementById('r-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list'));
 document.getElementById('s-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list-s'));
 resetRollForm();
