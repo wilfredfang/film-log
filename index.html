@@ -118,6 +118,7 @@
     <button data-view="dev" onclick="switchView('dev',this)">🧪 冲扫管理</button>
     <button data-view="equip" onclick="switchView('equip',this)">📸 设备库</button>
     <button data-view="stats" onclick="switchView('stats',this)">📊 成本统计</button>
+    <button data-view="cloud" onclick="switchView('cloud',this)">☁️ 云端同步</button>
   </nav>
   <main>
 
@@ -256,7 +257,35 @@
       </div>
       <div class="card">
         <h2>单卷成本与单张成本</h2>
-        <div id="chart-cost"></div>
+      <div id="chart-cost"></div>
+    </div>
+  </section>
+
+    <!-- ========== 云端同步 ========== -->
+    <section class="view" id="view-cloud">
+      <div class="card">
+        <h2>☁️ 云端同步（GitHub 私有 Gist）</h2>
+        <div class="hint">数据存到你自己的 GitHub 私有 Gist（文件 <code>film-log.json</code>），永久保存、跨设备同步。Token 只存本机浏览器，不写进网页源码、不上传别处；与你投资看板共用同一个 Gist，互不干扰。</div>
+        <div class="grid c2">
+          <label class="fld">GitHub 令牌 Token<input id="cloud-token" type="password" placeholder="ghp_..." autocomplete="off"></label>
+          <label class="fld">Gist ID<input id="cloud-gist" placeholder="638ac9e0bf60dc0e20d1c2d8671232b2"></label>
+        </div>
+        <div class="hint" style="margin-top:2px">Gist ID 默认已填好。首次只需粘贴你的 GitHub Token，之后手机/电脑填同一个 Token 即可同步。</div>
+        <div class="row-actions" style="margin-top:12px">
+          <button class="btn" onclick="cloudUpload()">☁️ 一键上传（本机→云端）</button>
+          <button class="btn ghost" onclick="cloudPull()">⬇️ 拉取云端（云端→本机）</button>
+        </div>
+        <div id="cloud-status" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2>使用说明</h2>
+        <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.9;color:var(--text)">
+          <li><b>令牌</b>在 GitHub → Settings → Developer settings → Personal access tokens 生成，勾选 <code>gist</code> 权限即可，复制后以 <code>ghp_</code> 开头。</li>
+          <li>令牌只存本机浏览器 localStorage，换设备需重新粘贴一次；网页源码里看不到它。</li>
+          <li><b>一键上传</b>：把当前本机数据备份到云端（覆盖云端同名文件）。</li>
+          <li><b>拉取云端</b>：把云端数据恢复到本机（会覆盖本机，先确认本机没有要保留的新数据）。</li>
+          <li>网络提示：GitHub 在部分公司网络被屏蔽，若同步失败请换网络（如手机流量 / 家里）。</li>
+        </ul>
       </div>
     </section>
 
@@ -546,9 +575,55 @@ function importData(input){const f=input.files[0];if(!f)return;const rd=new File
   rd.onload=()=>{try{const d=JSON.parse(rd.result);if(d&&d.rolls){db=d;save();renderAll();toast('导入成功');}else toast('文件格式不对');}catch(e){toast('解析失败');}};
   rd.readAsText(f);input.value='';}
 
+/* ---------------- 云端同步（GitHub 私有 Gist） ---------------- */
+const GIST_ID_DEFAULT='638ac9e0bf60dc0e20d1c2d8671232b2';
+const CLOUD_FILE='film-log.json';
+function cloudInit(){
+  $('cloud-token').value=localStorage.getItem('filmlog_token')||'';
+  $('cloud-gist').value=localStorage.getItem('filmlog_gist')||GIST_ID_DEFAULT;
+}
+function cloudHeaders(token){return {'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'};}
+function cloudStatus(msg){const el=$('cloud-status');if(el)el.textContent=msg;}
+function cloudNow(){return new Date().toLocaleString('zh-CN');}
+async function cloudUpload(){
+  const token=$('cloud-token').value.trim();
+  let gist=$('cloud-gist').value.trim();
+  if(!token){toast('请先填写 GitHub Token');return;}
+  if(!gist){toast('请填写 Gist ID');return;}
+  localStorage.setItem('filmlog_token',token);localStorage.setItem('filmlog_gist',gist);
+  cloudStatus('上传中…');
+  try{
+    /* GitHub Gist PATCH 只改指定文件，其余文件（如 invest-board.json）自动保留 */
+    const res=await fetch('https://api.github.com/gists/'+gist,{method:'PATCH',headers:cloudHeaders(token),body:JSON.stringify({files:{[CLOUD_FILE]:{content:JSON.stringify(db)}}})});
+    if(!res.ok){const e=await res.json().catch(()=>({}));cloudStatus('上传失败：'+(e.message||res.status));toast('上传失败');return;}
+    const j=await res.json();
+    localStorage.setItem('filmlog_gist',j.id);$('cloud-gist').value=j.id;
+    cloudStatus('✅ 已上传到云端 · '+cloudNow());toast('已上传云端');
+  }catch(err){cloudStatus('上传出错：'+err.message+'（可能是网络无法访问 GitHub）');toast('上传出错');}
+}
+async function cloudPull(){
+  const token=$('cloud-token').value.trim();
+  const gist=$('cloud-gist').value.trim();
+  if(!token){toast('请先填写 GitHub Token');return;}
+  if(!gist){toast('请填写 Gist ID');return;}
+  localStorage.setItem('filmlog_token',token);localStorage.setItem('filmlog_gist',gist);
+  if(!confirm('拉取云端会覆盖本机当前数据，确定继续？'))return;
+  cloudStatus('拉取中…');
+  try{
+    const res=await fetch('https://api.github.com/gists/'+gist,{headers:cloudHeaders(token)});
+    if(!res.ok){const e=await res.json().catch(()=>({}));cloudStatus('拉取失败：'+(e.message||res.status));toast('拉取失败');return;}
+    const j=await res.json();
+    const f=j.files&&j.files[CLOUD_FILE];
+    if(!f||!f.content){cloudStatus('云端还没有 '+CLOUD_FILE+' 数据，请先上传一次。');toast('云端暂无数据');return;}
+    const d=JSON.parse(f.content);
+    if(d&&d.rolls){db=d;save();renderAll();}
+    cloudStatus('✅ 已从云端恢复 · '+cloudNow());toast('已从云端恢复');
+  }catch(err){cloudStatus('拉取出错：'+err.message+'（可能是网络无法访问 GitHub）');toast('拉取出错');}
+}
+
 /* ---------------- 初始化 ---------------- */
 function renderAll(){renderRolls();renderStock();renderDev();renderEquip();fillRollSelect();}
-load();fillBrandList();fillCameraList();fillLensList();fillEquipBrandList();
+load();fillBrandList();fillCameraList();fillLensList();fillEquipBrandList();cloudInit();
 document.getElementById('r-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list'));
 document.getElementById('s-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list-s'));
 document.getElementById('r-model').addEventListener('input',e=>applyModelIso(e.target.value,'r-iso'));
