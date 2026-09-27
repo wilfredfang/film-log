@@ -131,7 +131,7 @@
           <div class="grid c3">
             <label class="fld">品牌<input id="r-brand" list="brand-list" placeholder="选常用品牌或输入" required><datalist id="brand-list"></datalist></label>
             <label class="fld">型号<input id="r-model" list="model-list" placeholder="选常用型号或输入" required><datalist id="model-list"></datalist></label>
-            <label class="fld">ISO<select id="r-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
+            <label class="fld">ISO<select id="r-iso"><option>25</option><option>50</option><option>80</option><option>100</option><option>125</option><option>160</option><option>200</option><option>320</option><option selected>400</option><option>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
             <label class="fld">画幅<select id="r-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
             <label class="fld">相机<input id="r-camera" list="camera-list" placeholder="选相机或输入"><datalist id="camera-list"></datalist></label>
             <label class="fld">镜头<input id="r-lens" list="lens-list" placeholder="选镜头或输入"><datalist id="lens-list"></datalist></label>
@@ -162,7 +162,7 @@
           <div class="grid c3">
             <label class="fld">品牌<input id="s-brand" list="brand-list" placeholder="选常用品牌或输入" required></label>
             <label class="fld">型号<input id="s-model" list="model-list-s" placeholder="选常用型号或输入" required><datalist id="model-list-s"></datalist></label>
-            <label class="fld">ISO<select id="s-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
+            <label class="fld">ISO<select id="s-iso"><option>25</option><option>50</option><option>80</option><option>100</option><option>125</option><option>160</option><option>200</option><option>320</option><option selected>400</option><option>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
             <label class="fld">画幅<select id="s-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
             <label class="fld">数量(卷)<input id="s-qty" type="number" min="0" required></label>
             <label class="fld">单价(元)<input id="s-price" type="number" min="0" step="0.01"></label>
@@ -291,6 +291,28 @@ const BRANDS={
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fillBrandList(){document.getElementById('brand-list').innerHTML=Object.keys(BRANDS).map(b=>`<option value="${b}">`).join('');}
 function fillModelList(sel,listId){const m=BRANDS[sel]||[];document.getElementById(listId).innerHTML=m.map(x=>`<option value="${x}">`).join('');}
+/* 型号 → ISO 联动表（覆盖常用型号；数据库里没有的就不联动，用户仍可手动改） */
+const MODEL_ISO={
+  "Portra 160":160,"Portra 400":400,"Portra 800":800,"Gold 200":200,"ColorPlus 200":200,
+  "Ultramax 400":400,"Ektar 100":100,"Ektachrome E100":100,"T-Max 100":100,"T-Max 400":400,
+  "Tri-X 400":400,"Cinestill 800T":800,
+  "Pro 400H":400,"Superia X-TRA 400":400,"C200":200,"Provia 100F":100,"Velvia 50":50,"Velvia 100":100,
+  "Neopan 100 Acros":100,"Natura 1600":1600,"业务卷 100":100,
+  "HP5 Plus 400":400,"Delta 100":100,"Delta 400":400,"Delta 3200":3200,"FP4 Plus 125":125,
+  "Pan F Plus 50":50,"XP2 Super 400":400,"SFX 200":200,
+  "800T":800,"50D":50,"400D":400,
+  "Lomo 400":400,"Lomo 800":800,"Color 100":100,"Redscale 100":100,"Lady Grey 400":400,"Earl Grey 100":100,
+  "乐凯 100":100,"乐凯 200":200,"乐凯 400":400,"SH 100":100,"CN 200":200,
+  "CT Precisa 100":100,"Vista 200":200,"APX 100":100,
+  "Fomapan 100":100,"Fomapan 200":200,"Fomapan 400":400,"Retropan 320":320,
+  "RPX 25":25,"RPX 100":100,"RPX 400":400,"Retro 80S":80,
+  "上海 GP3 100":100,"上海 200":200,"绿盒 100":100
+};
+function applyModelIso(modelVal,isoSelectId){
+  const iso=MODEL_ISO[(modelVal||'').trim()];
+  if(iso!=null){const sel=document.getElementById(isoSelectId);
+    if([...sel.options].some(o=>o.value===String(iso)))sel.value=String(iso);}
+}
 
 /* ---------------- 视图切换 ---------------- */
 function switchView(v,btn){
@@ -529,6 +551,8 @@ function renderAll(){renderRolls();renderStock();renderDev();renderEquip();fillR
 load();fillBrandList();fillCameraList();fillLensList();fillEquipBrandList();
 document.getElementById('r-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list'));
 document.getElementById('s-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list-s'));
+document.getElementById('r-model').addEventListener('input',e=>applyModelIso(e.target.value,'r-iso'));
+document.getElementById('s-model').addEventListener('input',e=>applyModelIso(e.target.value,'s-iso'));
 resetRollForm();
 renderAll();
 </script>
