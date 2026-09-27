@@ -262,16 +262,16 @@ function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;
 function fmt(n){return (n||0).toLocaleString('zh-CN',{maximumFractionDigits:2});}
 /* 常用品牌与型号（按品牌联动） */
 const BRANDS={
-  "Kodak 柯达":["Portra 160","Portra 400","Portra 800","Gold 200","ColorPlus 200","Ultramax 400","Ektar 100","Ektachrome E100","T-Max 100","T-Max 400","Tri-X 400","Cinestill 800T"],
-  "Fujifilm 富士":["Pro 400H","Superia X-TRA 400","C200","Provia 100F","Velvia 50","Velvia 100","Neopan 100 Acros","Natura 1600","业务卷 100"],
-  "Ilford 伊尔福":["HP5 Plus 400","Delta 100","Delta 400","Delta 3200","FP4 Plus 125","Pan F Plus 50","XP2 Super 400","SFX 200"],
+  "Kodak (柯达)":["Portra 160","Portra 400","Portra 800","Gold 200","ColorPlus 200","Ultramax 400","Ektar 100","Ektachrome E100","T-Max 100","T-Max 400","Tri-X 400","Cinestill 800T"],
+  "Fujifilm (富士)":["Pro 400H","Superia X-TRA 400","C200","Provia 100F","Velvia 50","Velvia 100","Neopan 100 Acros","Natura 1600","业务卷 100"],
+  "Ilford (伊尔福)":["HP5 Plus 400","Delta 100","Delta 400","Delta 3200","FP4 Plus 125","Pan F Plus 50","XP2 Super 400","SFX 200"],
   "CineStill":["800T","50D","400D"],
-  "Lomography 乐魔":["Lomo 400","Lomo 800","Color 100","Redscale 100","Lady Grey 400","Earl Grey 100"],
-  "Lucky 乐凯":["乐凯 100","乐凯 200","乐凯 400","SH 100","CN 200"],
-  "Agfa 爱克发":["CT Precisa 100","Vista 200","APX 100"],
-  "Foma 福马":["Fomapan 100","Fomapan 200","Fomapan 400","Retropan 320"],
-  "Rollei 禄莱":["RPX 25","RPX 100","RPX 400","Retro 80S"],
-  "Shanghai 上海":["上海 GP3 100","上海 200","绿盒 100"]
+  "Lomography (乐魔)":["Lomo 400","Lomo 800","Color 100","Redscale 100","Lady Grey 400","Earl Grey 100"],
+  "Lucky (乐凯)":["乐凯 100","乐凯 200","乐凯 400","SH 100","CN 200"],
+  "Agfa (爱克发)":["CT Precisa 100","Vista 200","APX 100"],
+  "Foma (福马)":["Fomapan 100","Fomapan 200","Fomapan 400","Retropan 320"],
+  "Rollei (禄莱)":["RPX 25","RPX 100","RPX 400","Retro 80S"],
+  "Shanghai (上海)":["上海 GP3 100","上海 200","绿盒 100"]
 };
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fillBrandList(){document.getElementById('brand-list').innerHTML=Object.keys(BRANDS).map(b=>`<option value="${b}">`).join('');}
