@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>胶片记录小工具</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#fafafa;
+    --line:#e5e7eb;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --accent:#d97706;      /* 琥珀色，呼应胶片质感 */
+    --accent-soft:#fef3c7;
+    --green:#15803d;
+    --red:#b91c1c;
+    --radius:10px;
+    --shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.5}
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:10}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.5px}
+  header .sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+  .head-actions{display:flex;gap:8px}
+  .layout{display:flex;min-height:calc(100vh - 53px)}
+  nav.side{width:150px;border-right:1px solid var(--line);padding:14px 10px;flex-shrink:0}
+  nav.side button{display:block;width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;
+    border:0;border-radius:8px;background:transparent;color:var(--text);cursor:pointer;font-size:14px}
+  nav.side button:hover{background:var(--panel)}
+  nav.side button.active{background:var(--accent-soft);color:#92400e;font-weight:600}
+  main{flex:1;padding:22px 26px;max-width:1100px}
+  section.view{display:none}
+  section.view.active{display:block}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .card h2{margin:0 0 14px;font-size:15px;font-weight:700}
+  .grid{display:grid;gap:12px}
+  .grid.c2{grid-template-columns:1fr 1fr}
+  .grid.c3{grid-template-columns:repeat(3,1fr)}
+  .grid.c4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:780px){.grid.c2,.grid.c3,.grid.c4{grid-template-columns:1fr}}
+  label.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  input,select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);
+    border-radius:7px;background:#fff;color:var(--text);width:100%}
+  textarea{resize:vertical;min-height:46px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .btn{padding:8px 16px;border:0;border-radius:7px;background:var(--accent);color:#fff;
+    cursor:pointer;font-size:13px;font-weight:600}
+  .btn:hover{filter:brightness(.95)}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--text);font-weight:500}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .btn.danger{background:#fff;border:1px solid #fca5a5;color:var(--red)}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;background:var(--panel)}
+  tr:hover td{background:#fffdf7}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+  .tag.dev{background:#dcfce7;color:var(--green);border-color:#bbf7d0}
+  .tag.wait{background:#fef9c3;color:#854d0e;border-color:#fde68a}
+  .muted{color:var(--muted)}
+  .empty{color:var(--muted);text-align:center;padding:30px 0;font-size:13px}
+  .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+  @media(max-width:780px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .stat .n{font-size:22px;font-weight:700}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
+  .bar-row .name{width:120px;flex-shrink:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-row .track{flex:1;background:var(--panel);border-radius:6px;height:16px;overflow:hidden}
+  .bar-row .fill{height:100%;background:var(--accent)}
+  .bar-row .val{width:80px;flex-shrink:0;text-align:right;color:var(--muted)}
+  details.frames{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
+  summary{cursor:pointer;font-size:12px;color:var(--accent);font-weight:600;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1f2937;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
+  .hint{font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>胶片记录小工具<span class="sub">Film Log · 本地离线 · 自动保存</span></h1></div>
+  <div class="head-actions">
+    <button class="btn ghost sm" onclick="exportData()">导出备份</button>
+    <button class="btn ghost sm" onclick="document.getElementById('imp').click()">导入</button>
+    <input id="imp" type="file" accept="application/json" style="display:none" onchange="importData(this)">
+  </div>
+</header>
+<div class="layout">
+  <nav class="side">
+    <button data-view="rolls" class="active" onclick="switchView('rolls',this)">📷 拍摄卷</button>
+    <button data-view="stock" onclick="switchView('stock',this)">📦 胶片库存</button>
+    <button data-view="dev" onclick="switchView('dev',this)">🧪 冲扫管理</button>
+    <button data-view="stats" onclick="switchView('stats',this)">📊 成本统计</button>
+  </nav>
+  <main>
+
+    <!-- ========== 拍摄卷 ========== -->
+    <section class="view active" id="view-rolls">
+      <div class="card">
+        <h2 id="roll-form-title">新增一卷胶片</h2>
+        <div class="hint">记录每一卷胶卷信息和拍摄参数。拍完后在「张数」填实际拍摄数量，可在详情里逐帧记光圈快门。</div>
+        <form id="roll-form" onsubmit="return saveRoll(event)">
+          <input type="hidden" id="roll-id">
+          <div class="grid c3">
+            <label class="fld">品牌<input id="r-brand" placeholder="如 Kodak / 富士 / 伊尔福" required></label>
+            <label class="fld">型号<input id="r-model" placeholder="如 Portra 400 / Gold 200" required></label>
+            <label class="fld">ISO<select id="r-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
+            <label class="fld">画幅<select id="r-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
+            <label class="fld">相机<input id="r-camera" placeholder="如 FM2 / 旁轴"></label>
+            <label class="fld">张数(实拍)<input id="r-frames" type="number" min="0" placeholder="如 36"></label>
+            <label class="fld">装卷日期<input id="r-loaded" type="date"></label>
+            <label class="fld">拍完日期<input id="r-finished" type="date"></label>
+            <label class="fld">这卷成本(元)<input id="r-price" type="number" min="0" step="0.01" placeholder="买卷价"></label>
+          </div>
+          <label class="fld" style="margin-top:10px">备注<textarea id="r-notes" placeholder="批次、保存条件、拍摄主题等"></textarea></label>
+          <div class="row-actions" style="margin-top:12px">
+            <button class="btn" type="submit" id="roll-submit">保存</button>
+            <button class="btn ghost" type="button" onclick="resetRollForm()">清空</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>胶片卷列表 <span id="roll-count" class="muted" style="font-weight:400;font-size:12px"></span></h2>
+        <div id="roll-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 库存 ========== -->
+    <section class="view" id="view-stock">
+      <div class="card">
+        <h2 id="stock-form-title">新增库存</h2>
+        <form id="stock-form" onsubmit="return saveStock(event)">
+          <input type="hidden" id="stock-id">
+          <div class="grid c3">
+            <label class="fld">品牌<input id="s-brand" required></label>
+            <label class="fld">型号<input id="s-model" required></label>
+            <label class="fld">ISO<select id="s-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
+            <label class="fld">画幅<select id="s-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
+            <label class="fld">数量(卷)<input id="s-qty" type="number" min="0" required></label>
+            <label class="fld">单价(元)<input id="s-price" type="number" min="0" step="0.01"></label>
+            <label class="fld">到期日<input id="s-expiry" type="date"></label>
+            <label class="fld">入库日期<input id="s-added" type="date"></label>
+          </div>
+          <div class="row-actions" style="margin-top:12px">
+            <button class="btn" type="submit" id="stock-submit">保存</button>
+            <button class="btn ghost" type="button" onclick="resetStockForm()">清空</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>库存列表 <span id="stock-count" class="muted" style="font-weight:400;font-size:12px"></span></h2>
+        <div id="stock-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 冲扫 ========== -->
+    <section class="view" id="view-dev">
+      <div class="card">
+        <h2 id="dev-form-title">新增冲扫记录</h2>
+        <div class="hint">可关联某一卷（选卷后成本会并入该卷统计），也可作为独立冲扫记录。</div>
+        <form id="dev-form" onsubmit="return saveDev(event)">
+          <input type="hidden" id="dev-id">
+          <div class="grid c3">
+            <label class="fld">关联卷<select id="d-roll"><option value="">（独立记录）</option></select></label>
+            <label class="fld">类型<select id="d-type"><option>冲洗</option><option>扫描</option><option>冲+扫</option><option>自冲</option></select></label>
+            <label class="fld">店铺/方式<input id="d-shop" placeholder="如 世纪开元 / 自己D76"></label>
+            <label class="fld">药水配方<input id="d-chem" placeholder="如 C41 / D76 1+1"></label>
+            <label class="fld">日期<input id="d-date" type="date"></label>
+            <label class="fld">费用(元)<input id="d-cost" type="number" min="0" step="0.01"></label>
+            <label class="fld">状态<select id="d-status"><option value="待冲">待冲</option><option value="冲洗中">冲洗中</option><option value="已扫描">已扫描</option><option value="已修">已修</option></select></label>
+          </div>
+          <label class="fld" style="margin-top:10px">备注<textarea id="d-notes" placeholder="扫分辨率、是否调色等"></textarea></label>
+          <div class="row-actions" style="margin-top:12px">
+            <button class="btn" type="submit" id="dev-submit">保存</button>
+            <button class="btn ghost" type="button" onclick="resetDevForm()">清空</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>冲扫记录 <span id="dev-count" class="muted" style="font-weight:400;font-size:12px"></span></h2>
+        <div id="dev-list"></div>
+      </div>
+    </section>
+
+    <!-- ========== 统计 ========== -->
+    <section class="view" id="view-stats">
+      <div id="stats-overview"></div>
+      <div class="card">
+        <h2>按品牌花费（买卷 + 冲扫）</h2>
+        <div id="chart-brand"></div>
+      </div>
+      <div class="card">
+        <h2>按相机使用卷数</h2>
+        <div id="chart-camera"></div>
+      </div>
+      <div class="card">
+        <h2>单卷成本与单张成本</h2>
+        <div id="chart-cost"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- 数据存储 ---------------- */
+const KEY='filmlog_v1';
+let db={rolls:[],stock:[],dev:[]};
+function load(){try{const r=localStorage.getItem(KEY);if(r)db=JSON.parse(r);}catch(e){}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function $(id){return document.getElementById(id);}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmt(n){return (n||0).toLocaleString('zh-CN',{maximumFractionDigits:2});}
+
+/* ---------------- 视图切换 ---------------- */
+function switchView(v,btn){
+  document.querySelectorAll('section.view').forEach(s=>s.classList.remove('active'));
+  $('view-'+v).classList.add('active');
+  document.querySelectorAll('nav.side button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(v==='stats')renderStats();
+}
+
+/* ---------------- 拍摄卷 ---------------- */
+function saveRoll(e){
+  e.preventDefault();
+  const id=$('roll-id').value;
+  const o={
+    id:id||uid(),
+    brand:$('r-brand').value.trim(),
+    model:$('r-model').value.trim(),
+    iso:$('r-iso').value,
+    format:$('r-format').value,
+    camera:$('r-camera').value.trim(),
+    frames:parseInt($('r-frames').value)||0,
+    loaded:$('r-loaded').value,
+    finished:$('r-finished').value,
+    price:parseFloat($('r-price').value)||0,
+    notes:$('r-notes').value.trim(),
+    frameLog: id? (db.rolls.find(r=>r.id===id)?.frameLog||[]) : []
+  };
+  if(id){const i=db.rolls.findIndex(r=>r.id===id);db.rolls[i]=o;}
+  else db.rolls.unshift(o);
+  save();resetRollForm();renderRolls();toast(id?'已更新':'已新增一卷');
+  return false;
+}
+function resetRollForm(){
+  $('roll-form').reset();$('roll-id').value='';
+  $('roll-form-title').textContent='新增一卷胶片';$('roll-submit').textContent='保存';
+}
+function editRoll(id){const r=db.rolls.find(x=>x.id===id);if(!r)return;
+  $('roll-id').value=r.id;$('r-brand').value=r.brand;$('r-model').value=r.model;
+  $('r-iso').value=r.iso;$('r-format').value=r.format;$('r-camera').value=r.camera;
+  $('r-frames').value=r.frames;$('r-loaded').value=r.loaded;$('r-finished').value=r.finished;
+  $('r-price').value=r.price;$('r-notes').value=r.notes;
+  $('roll-form-title').textContent='编辑：'+r.brand+' '+r.model;$('roll-submit').textContent='更新';
+  $('view-rolls').scrollIntoView({behavior:'smooth'});
+}
+function delRoll(id){if(!confirm('确定删除这卷？关联冲扫若独立则保留。'))return;
+  db.rolls=db.rolls.filter(r=>r.id!==id);save();renderRolls();toast('已删除');}
+function addFrame(id){
+  const r=db.rolls.find(x=>x.id===id);if(!r)return;
+  const num=prompt('第几张？');if(num==null)return;
+  const ap=prompt('光圈？如 f8');const sh=prompt('快门？如 1/250');const ln=prompt('镜头/焦段？');const nt=prompt('备注？');
+  r.frameLog=r.frameLog||[];
+  r.frameLog.push({num:num||'',ap:ap||'',sh:sh||'',ln:ln||'',nt:nt||''});
+  save();renderRolls();toast('已记一帧');
+}
+function renderRolls(){
+  const list=$('roll-list');$('roll-count').textContent='共 '+db.rolls.length+' 卷';
+  if(!db.rolls.length){list.innerHTML='<div class="empty">还没有记录，先在上方加一卷吧。</div>';return;}
+  let h='<table><thead><tr><th>品牌/型号</th><th>ISO</th><th>画幅</th><th>相机</th><th>张数</th><th>成本</th><th>装卷→拍完</th><th>操作</th></tr></thead><tbody>';
+  db.rolls.forEach(r=>{
+    const fl=(r.frameLog&&r.frameLog.length)?`<details class="frames"><summary>逐帧记录(${r.frameLog.length})</summary>
+      <table style="margin-top:8px"><thead><tr><th>张</th><th>光圈</th><th>快门</th><th>镜头</th><th>备注</th></tr></thead><tbody>
+      ${r.frameLog.map(f=>`<tr><td>${esc(f.num)}</td><td>${esc(f.ap)}</td><td>${esc(f.sh)}</td><td>${esc(f.ln)}</td><td>${esc(f.nt)}</td></tr>`).join('')}
+      </tbody></table><button class="btn sm" style="margin-top:8px" onclick="addFrame('${r.id}')">+ 记一帧</button></details>`:
+      `<button class="btn sm ghost" onclick="addFrame('${r.id}')">+ 逐帧记录</button>`;
+    h+=`<tr><td><b>${esc(r.brand)}</b> ${esc(r.model)}<br><span class="muted" style="font-size:11px">${esc(r.notes)||'—'}</span>${fl}</td>
+      <td>${esc(r.iso)}</td><td>${esc(r.format)}</td><td>${esc(r.camera)||'—'}</td>
+      <td>${r.frames||'—'}</td><td>¥${fmt(r.price)}</td>
+      <td class="muted" style="font-size:12px">${r.loaded||'?'} → ${r.finished||'?'}</td>
+      <td><div class="row-actions"><button class="btn sm ghost" onclick="editRoll('${r.id}')">编辑</button><button class="btn sm danger" onclick="delRoll('${r.id}')">删</button></div></td></tr>`;
+  });
+  list.innerHTML=h+'</tbody></table>';
+}
+
+/* ---------------- 库存 ---------------- */
+function saveStock(e){e.preventDefault();
+  const id=$('stock-id').value;
+  const o={id:id||uid(),brand:$('s-brand').value.trim(),model:$('s-model').value.trim(),
+    iso:$('s-iso').value,format:$('s-format').value,qty:parseInt($('s-qty').value)||0,
+    price:parseFloat($('s-price').value)||0,expiry:$('s-expiry').value,added:$('s-added').value};
+  if(id){const i=db.stock.findIndex(s=>s.id===id);db.stock[i]=o;}else db.stock.unshift(o);
+  save();resetStockForm();renderStock();toast(id?'已更新':'已入库');return false;
+}
+function resetStockForm(){$('stock-form').reset();$('stock-id').value='';$('stock-form-title').textContent='新增库存';$('stock-submit').textContent='保存';}
+function editStock(id){const s=db.stock.find(x=>x.id===id);if(!s)return;
+  $('stock-id').value=s.id;$('s-brand').value=s.brand;$('s-model').value=s.model;$('s-iso').value=s.iso;
+  $('s-format').value=s.format;$('s-qty').value=s.qty;$('s-price').value=s.price;$('s-expiry').value=s.expiry;$('s-added').value=s.added;
+  $('stock-form-title').textContent='编辑：'+s.brand+' '+s.model;$('stock-submit').textContent='更新';$('view-stock').scrollIntoView({behavior:'smooth'});}
+function delStock(id){if(!confirm('删除这条库存？'))return;db.stock=db.stock.filter(s=>s.id!==id);save();renderStock();toast('已删除');}
+function renderStock(){const list=$('stock-list');
+  const totalQty=db.stock.reduce((a,s)=>a+s.qty,0);
+  const totalVal=db.stock.reduce((a,s)=>a+s.qty*s.price,0);
+  $('stock-count').textContent=`共 ${db.stock.length} 种 · ${totalQty} 卷 · 估值 ¥${fmt(totalVal)}`;
+  if(!db.stock.length){list.innerHTML='<div class="empty">库存为空。</div>';return;}
+  const today=new Date().toISOString().slice(0,10);
+  let h='<table><thead><tr><th>品牌/型号</th><th>ISO</th><th>画幅</th><th>数量</th><th>单价</th><th>小计</th><th>到期</th><th>操作</th></tr></thead><tbody>';
+  db.stock.forEach(s=>{
+    const exp=s.expiry&&s.expiry<today?'<span class="tag danger" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5">已过期</span>':(s.expiry?esc(s.expiry):'—');
+    h+=`<tr><td><b>${esc(s.brand)}</b> ${esc(s.model)}</td><td>${esc(s.iso)}</td><td>${esc(s.format)}</td>
+      <td>${s.qty}</td><td>¥${fmt(s.price)}</td><td>¥${fmt(s.qty*s.price)}</td><td>${exp}</td>
+      <td><div class="row-actions"><button class="btn sm ghost" onclick="editStock('${s.id}')">编辑</button><button class="btn sm danger" onclick="delStock('${s.id}')">删</button></div></td></tr>`;
+  });
+  list.innerHTML=h+'</tbody></table>';
+}
+
+/* ---------------- 冲扫 ---------------- */
+function fillRollSelect(){const sel=$('d-roll');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">（独立记录）</option>'+db.rolls.map(r=>`<option value="${r.id}">${esc(r.brand)} ${esc(r.model)} ${r.finished||r.loaded||''}</option>`).join('');
+  sel.value=cur;}
+function saveDev(e){e.preventDefault();
+  const id=$('dev-id').value;
+  const o={id:id||uid(),rollId:$('d-roll').value,type:$('d-type').value,shop:$('d-shop').value.trim(),
+    chem:$('d-chem').value.trim(),date:$('d-date').value,cost:parseFloat($('d-cost').value)||0,
+    status:$('d-status').value,notes:$('d-notes').value.trim()};
+  if(id){const i=db.dev.findIndex(d=>d.id===id);db.dev[i]=o;}else db.dev.unshift(o);
+  save();resetDevForm();renderDev();toast(id?'已更新':'已记录');return false;
+}
+function resetDevForm(){$('dev-form').reset();$('dev-id').value='';fillRollSelect();$('dev-form-title').textContent='新增冲扫记录';$('dev-submit').textContent='保存';}
+function editDev(id){const d=db.dev.find(x=>x.id===id);if(!d)return;
+  fillRollSelect();
+  $('dev-id').value=d.id;$('d-roll').value=d.rollId;$('d-type').value=d.type;$('d-shop').value=d.shop;
+  $('d-chem').value=d.chem;$('d-date').value=d.date;$('d-cost').value=d.cost;$('d-status').value=d.status;$('d-notes').value=d.notes;
+  $('dev-form-title').textContent='编辑冲扫记录';$('dev-submit').textContent='更新';$('view-dev').scrollIntoView({behavior:'smooth'});}
+function delDev(id){if(!confirm('删除这条冲扫记录？'))return;db.dev=db.dev.filter(d=>d.id!==id);save();renderDev();toast('已删除');}
+function renderDev(){const list=$('dev-list');$('dev-count').textContent='共 '+db.dev.length+' 条';
+  if(!db.dev.length){list.innerHTML='<div class="empty">还没有冲扫记录。</div>';return;}
+  const rollName=id=>{const r=db.rolls.find(x=>x.id===id);return r?(r.brand+' '+r.model):'独立';};
+  let h='<table><thead><tr><th>关联卷</th><th>类型</th><th>店铺/方式</th><th>药水</th><th>日期</th><th>费用</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  db.dev.forEach(d=>{
+    const st=d.status==='待冲'?'<span class="tag wait">待冲</span>':(d.status==='已修'?'<span class="tag dev">已修</span>':`<span class="tag">${esc(d.status)}</span>`);
+    h+=`<tr><td>${d.rollId?esc(rollName(d.rollId)):'<span class="muted">独立</span>'}</td><td>${esc(d.type)}</td>
+      <td>${esc(d.shop)||'—'}</td><td>${esc(d.chem)||'—'}</td><td>${esc(d.date)||'—'}</td>
+      <td>¥${fmt(d.cost)}</td><td>${st}</td>
+      <td><div class="row-actions"><button class="btn sm ghost" onclick="editDev('${d.id}')">编辑</button><button class="btn sm danger" onclick="delDev('${d.id}')">删</button></div></td></tr>`;
+  });
+  list.innerHTML=h+'</tbody></table>';
+}
+
+/* ---------------- 统计 ---------------- */
+function barChart(elId,data){
+  const el=$(elId);if(!data.length){el.innerHTML='<div class="empty">暂无数据。</div>';return;}
+  const max=Math.max(...data.map(d=>d.v));
+  el.innerHTML=data.map(d=>`<div class="bar-row"><div class="name" title="${esc(d.k)}">${esc(d.k)}</div>
+    <div class="track"><div class="fill" style="width:${max?d.v/max*100:0}%"></div></div>
+    <div class="val">${d.suffix||''}${fmt(d.v)}</div></div>`).join('');
+}
+function renderStats(){
+  const totalRolls=db.rolls.length;
+  const totalFrames=db.rolls.reduce((a,r)=>a+(r.frames||0),0);
+  const filmCost=db.rolls.reduce((a,r)=>a+(r.price||0),0);
+  const devCost=db.dev.reduce((a,d)=>a+(d.cost||0),0);
+  const totalCost=filmCost+devCost;
+  const perFrame=totalFrames?totalCost/totalFrames:0;
+  $('stats-overview').innerHTML=`<div class="stat-grid">
+    <div class="stat"><div class="n">${totalRolls}</div><div class="l">总卷数</div></div>
+    <div class="stat"><div class="n">${totalFrames}</div><div class="l">总拍摄张数</div></div>
+    <div class="stat"><div class="n">¥${fmt(filmCost)}</div><div class="l">胶片花费</div></div>
+    <div class="stat"><div class="n">¥${fmt(devCost)}</div><div class="l">冲扫花费</div></div>
+    <div class="stat"><div class="n">¥${fmt(totalCost)}</div><div class="l">总花费 / 张 ¥${fmt(perFrame)}</div></div>
+  </div>`;
+  // 按品牌花费
+  const brandMap={};
+  db.rolls.forEach(r=>{const k=r.brand+' '+r.model;brandMap[k]=(brandMap[k]||0)+(r.price||0);});
+  db.dev.forEach(d=>{if(d.rollId){const r=db.rolls.find(x=>x.id===d.rollId);if(r){const k=r.brand+' '+r.model;brandMap[k]=(brandMap[k]||0)+(d.cost||0);}}});
+  barChart('chart-brand',Object.entries(brandMap).map(([k,v])=>({k,v,suffix:'¥'})).sort((a,b)=>b.v-a.v).slice(0,10));
+  // 按相机卷数
+  const camMap={};
+  db.rolls.forEach(r=>{const k=r.camera||'未记录';camMap[k]=(camMap[k]||0)+1;});
+  barChart('chart-camera',Object.entries(camMap).map(([k,v])=>({k,v,suffix:'卷'})).sort((a,b)=>b.v-a.v));
+  // 单卷成本
+  const rollCosts=db.rolls.map(r=>{const dc=db.dev.filter(d=>d.rollId===r.id).reduce((a,d)=>a+(d.cost||0),0);
+    const tot=(r.price||0)+dc;return{k:r.brand+' '+r.model,v:tot,suffix:'¥',pf:r.frames?tot/r.frames:0};}).sort((a,b)=>b.v-a.v).slice(0,10);
+  barChart('chart-cost',rollCosts);
+}
+
+/* ---------------- 备份 ---------------- */
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='胶片记录备份_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('已导出备份');}
+function importData(input){const f=input.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);if(d&&d.rolls){db=d;save();renderAll();toast('导入成功');}else toast('文件格式不对');}catch(e){toast('解析失败');}};
+  rd.readAsText(f);input.value='';}
+
+/* ---------------- 初始化 ---------------- */
+function renderAll(){renderRolls();renderStock();renderDev();fillRollSelect();}
+load();renderAll();
+</script>
+</body>
+</html>
