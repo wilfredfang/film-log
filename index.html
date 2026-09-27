@@ -43,7 +43,18 @@
   .grid.c2{grid-template-columns:1fr 1fr}
   .grid.c3{grid-template-columns:repeat(3,1fr)}
   .grid.c4{grid-template-columns:repeat(4,1fr)}
-  @media(max-width:780px){.grid.c2,.grid.c3,.grid.c4{grid-template-columns:1fr}}
+  @media(max-width:780px){
+    .grid.c2,.grid.c3,.grid.c4{grid-template-columns:1fr}
+    .layout{flex-direction:column}
+    nav.side{width:100%;border-right:0;border-bottom:1px solid var(--line);
+      display:flex;flex-direction:row;overflow-x:auto;padding:8px;gap:4px}
+    nav.side button{width:auto;white-space:nowrap;margin:0;flex-shrink:0}
+    main{padding:14px}
+    header{flex-direction:column;align-items:flex-start;gap:8px}
+    header h1{font-size:16px}
+    table{min-width:680px}
+  }
+  #roll-list,#stock-list,#dev-list{overflow-x:auto;-webkit-overflow-scrolling:touch}
   label.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
   input,select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);
     border-radius:7px;background:#fff;color:var(--text);width:100%}
@@ -111,12 +122,12 @@
         <form id="roll-form" onsubmit="return saveRoll(event)">
           <input type="hidden" id="roll-id">
           <div class="grid c3">
-            <label class="fld">品牌<input id="r-brand" placeholder="如 Kodak / 富士 / 伊尔福" required></label>
-            <label class="fld">型号<input id="r-model" placeholder="如 Portra 400 / Gold 200" required></label>
+            <label class="fld">品牌<input id="r-brand" list="brand-list" placeholder="选常用品牌或输入" required><datalist id="brand-list"></datalist></label>
+            <label class="fld">型号<input id="r-model" list="model-list" placeholder="选常用型号或输入" required><datalist id="model-list"></datalist></label>
             <label class="fld">ISO<select id="r-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
             <label class="fld">画幅<select id="r-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
             <label class="fld">相机<input id="r-camera" placeholder="如 FM2 / 旁轴"></label>
-            <label class="fld">张数(实拍)<input id="r-frames" type="number" min="0" placeholder="如 36"></label>
+            <label class="fld">张数(实拍)<input id="r-frames" type="number" min="0" list="frame-list" value="36"><datalist id="frame-list"><option>12</option><option>16</option><option>24</option><option>27</option><option>36</option><option>48</option></datalist></label>
             <label class="fld">装卷日期<input id="r-loaded" type="date"></label>
             <label class="fld">拍完日期<input id="r-finished" type="date"></label>
             <label class="fld">这卷成本(元)<input id="r-price" type="number" min="0" step="0.01" placeholder="买卷价"></label>
@@ -141,8 +152,8 @@
         <form id="stock-form" onsubmit="return saveStock(event)">
           <input type="hidden" id="stock-id">
           <div class="grid c3">
-            <label class="fld">品牌<input id="s-brand" required></label>
-            <label class="fld">型号<input id="s-model" required></label>
+            <label class="fld">品牌<input id="s-brand" list="brand-list" placeholder="选常用品牌或输入" required></label>
+            <label class="fld">型号<input id="s-model" list="model-list-s" placeholder="选常用型号或输入" required><datalist id="model-list-s"></datalist></label>
             <label class="fld">ISO<select id="s-iso"><option>50</option><option>100</option><option>200</option><option>400</option><option selected>800</option><option>1600</option><option>3200</option><option>其他</option></select></label>
             <label class="fld">画幅<select id="s-format"><option>135</option><option>120</option><option>110</option><option>其他</option></select></label>
             <label class="fld">数量(卷)<input id="s-qty" type="number" min="0" required></label>
@@ -223,6 +234,22 @@ function $(id){return document.getElementById(id);}
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmt(n){return (n||0).toLocaleString('zh-CN',{maximumFractionDigits:2});}
+/* 常用品牌与型号（按品牌联动） */
+const BRANDS={
+  "Kodak 柯达":["Portra 160","Portra 400","Portra 800","Gold 200","ColorPlus 200","Ultramax 400","Ektar 100","Ektachrome E100","T-Max 100","T-Max 400","Tri-X 400","Cinestill 800T"],
+  "Fujifilm 富士":["Pro 400H","Superia X-TRA 400","C200","Provia 100F","Velvia 50","Velvia 100","Neopan 100 Acros","Natura 1600","业务卷 100"],
+  "Ilford 伊尔福":["HP5 Plus 400","Delta 100","Delta 400","Delta 3200","FP4 Plus 125","Pan F Plus 50","XP2 Super 400","SFX 200"],
+  "CineStill":["800T","50D","400D"],
+  "Lomography 乐魔":["Lomo 400","Lomo 800","Color 100","Redscale 100","Lady Grey 400","Earl Grey 100"],
+  "Lucky 乐凯":["乐凯 100","乐凯 200","乐凯 400","SH 100","CN 200"],
+  "Agfa 爱克发":["CT Precisa 100","Vista 200","APX 100"],
+  "Foma 福马":["Fomapan 100","Fomapan 200","Fomapan 400","Retropan 320"],
+  "Rollei 禄莱":["RPX 25","RPX 100","RPX 400","Retro 80S"],
+  "Shanghai 上海":["上海 GP3 100","上海 200","绿盒 100"]
+};
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fillBrandList(){document.getElementById('brand-list').innerHTML=Object.keys(BRANDS).map(b=>`<option value="${b}">`).join('');}
+function fillModelList(sel,listId){const m=BRANDS[sel]||[];document.getElementById(listId).innerHTML=m.map(x=>`<option value="${x}">`).join('');}
 
 /* ---------------- 视图切换 ---------------- */
 function switchView(v,btn){
@@ -258,6 +285,8 @@ function saveRoll(e){
 }
 function resetRollForm(){
   $('roll-form').reset();$('roll-id').value='';
+  $('r-loaded').value=todayStr();
+  $('r-frames').value=36;
   $('roll-form-title').textContent='新增一卷胶片';$('roll-submit').textContent='保存';
 }
 function editRoll(id){const r=db.rolls.find(x=>x.id===id);if(!r)return;
@@ -409,7 +438,11 @@ function importData(input){const f=input.files[0];if(!f)return;const rd=new File
 
 /* ---------------- 初始化 ---------------- */
 function renderAll(){renderRolls();renderStock();renderDev();fillRollSelect();}
-load();renderAll();
+load();fillBrandList();
+document.getElementById('r-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list'));
+document.getElementById('s-brand').addEventListener('input',e=>fillModelList(e.target.value,'model-list-s'));
+resetRollForm();
+renderAll();
 </script>
 </body>
 </html>
